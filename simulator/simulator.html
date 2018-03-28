@@ -1,0 +1,192 @@
+<html>
+  <head>
+    <title>Ro Simulator</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/three.js/91/three.min.js"></script>
+    <script type="text/javascript" src="OrbitControls.js"></script>
+    <script type="text/javascript" src="OBJLoader.js"></script>
+    <script type="text/javascript">
+//setTimeout(() => location.reload(), 8000);
+    </script>
+    <script type="text/javascript">
+let renderer, scene, camera, controls;
+let code = "", has_new_code = false;
+let top_shell, bottom_shell;
+
+window.addEventListener("load", () => {
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize( window.innerWidth, window.innerHeight );
+  document.body.appendChild( renderer.domElement );
+
+  scene = new THREE.Scene();
+
+  let plane_geo = new THREE.PlaneBufferGeometry(16, 16, 8, 8);
+  plane_geo.rotateX(-Math.PI * 0.5);
+  plane_geo.translate(0, -2.9, 0);
+  let plane_mat = new THREE.MeshLambertMaterial(0xffffff);
+  let plane_obj = new THREE.Mesh(plane_geo, plane_mat);
+  scene.add(plane_obj);
+
+  let amb_light = new THREE.AmbientLight(0xffffff, 0.1);
+  scene.add(amb_light);
+  [
+    [16, 16, 8, 1],
+    [-8, -8, -8, 0.5],
+    [-8, -8,  8, 0.5],
+    [-8, 4,  8, 0.5],
+    [0, 0, -8, 0.5],
+  ].forEach(d => {
+    let l = new THREE.PointLight(0xffffff, d[3], 64, 2);
+    l.position.set(d[0], d[1], d[2]);
+    scene.add(l);
+  });
+
+  let loader = new THREE.OBJLoader();
+  loader.load("top_shell.obj", function(obj) {
+    top_shell = obj;
+    scene.add(obj);
+  });
+  loader.load("bottom_shell.obj", function(obj) {
+    bottom_shell = obj;
+    scene.add(obj);
+  });
+
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+  controls = new THREE.OrbitControls(camera);
+  controls.enablePan = false;
+
+  camera.position.set(0, 0, 16);
+  controls.update();
+
+  reset_simulation();
+  setTimeout(animate, 1000);
+  setInterval(execute, 20);
+});
+
+function animate() {
+  requestAnimationFrame( animate );
+
+  controls.update();
+
+  renderer.render( scene, camera );
+}
+
+const DT = 1.0 / 50.0;
+
+let tilt = {
+  angle: 90,
+  min_angle: 0,
+  max_angle: 180,
+  speed: 600,
+
+  angle_set: 90,
+
+  write: angle => {
+    let s = tilt;
+    if (angle < 0 || angle > 180) {
+      console.error("Tilt Servo angle out of bounds:", angle);
+      return;
+    }
+    // 10 uS resolution, 1000 - 2000
+    //s.angle_set = Math.floor(angle / 180.0 * 100.0) * 180;
+    s.angle_set = angle;
+  },
+
+  update: () => {
+    let s = tilt;
+    if (Math.abs(s.angle_set - s.angle) < s.speed * DT) {
+      s.angle = s.angle_set;
+    }
+    else {
+      s.angle += Math.sign(s.angle - s.angle_set) * s.speed * DT;
+    }
+  },
+};
+
+let pan = {
+  angle: 0,
+  speed: 360,
+
+  speed_set: 0,
+
+  write: angle => {
+    let s = pan;
+    if (angle < 0 || angle > 180) {
+      console.error("Pan Servo angle out of bounds:", angle);
+      return;
+    }
+    // 10 uS resolution, 1280 - 1720
+    // deadband 1480 - 1520
+    //s.speed_set
+    s.speed_set = (angle - 90) / 90 * s.speed;
+  },
+
+  read: () => {
+    let s = pan;
+    return s.angle;
+  },
+
+  update: () => {
+    let s = pan;
+    s.angle += s.speed_set * DT;
+  },
+}
+
+function reset_simulation() {
+  tilt.angle = 90;
+  tilt.angle_set = 90;
+  pan.angle = 0;
+  pan.speed_set = 0;
+}
+
+var setup = () => {};
+var loop = () => {};
+
+function execute() {
+  if (has_new_code) {
+    var geval = eval;
+    geval(code);
+    setup();
+    has_new_code = false;
+  }
+
+  loop();
+
+  tilt.update();
+  pan.update();
+
+  if (top_shell !== undefined) {
+    top_shell.rotation.set(
+        (tilt.angle - 90.0) / 180.0 * Math.PI,
+        pan.angle / 180.0 * Math.PI,
+        0
+    );
+  }
+}
+window.addEventListener("load", () => {
+  setInterval(() => {
+    let req = new XMLHttpRequest();
+    req.open("GET", "simulation.js?t=" + Date.now(), true);
+    req.addEventListener("load", () => {
+      let new_code = req.responseText;
+      if (new_code !== code) {
+        reset_simulation();
+        code = new_code;
+        has_new_code = true;
+        setup();
+      }
+    });
+    req.send();
+  }, 1000);
+});
+    </script>
+    <style type="text/css">
+body {
+  padding: 0px;
+  margin: 0px;
+}
+    </style>
+  </head>
+  <body>
+  </body>
+</html>
