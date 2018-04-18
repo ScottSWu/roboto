@@ -1,8 +1,8 @@
 #include <Servo.h>
-#include <LEDContro.h>
+#include <LedControl.h>
 
 Servo pan, tilt, neck, ears, tail;
-LedControl eyes = LedControl(11, 13, 10, 2);
+LedControl eyes = LedControl(12, 11, 10, 2);
 
 void setup() {
   Serial.begin(115200);
@@ -19,14 +19,14 @@ void setup() {
   ears.write(90);
   tail.write(90);
 
-  eyes.shutdown(addrL,false);
-  eyes.shutdown(addrR,false);
+  eyes.shutdown(0, false);
+  eyes.shutdown(1, false);
 
-  eyes.setIntensity(addrL,15);
-  eyes.setIntensity(addrR,15);
+  eyes.setIntensity(0, 15);
+  eyes.setIntensity(1, 15);
 
-  eyes.clearDisplay(addrL);
-  eyes.clearDisplay(addrR);
+  eyes.clearDisplay(0);
+  eyes.clearDisplay(1);
 }
 
 char buffer[5];
@@ -36,7 +36,7 @@ void loop() {
     byte b = Serial.read();
     buffer[buffer_index] = b;
     buffer_index++;
-    if (b == '\n') {
+    if (buffer_index == 5 && b == '\n') {
       char t = buffer[0];
       int v = (buffer[1] - '0') * 100 + (buffer[2] - '0') * 10 + (buffer[3] - '0');
       switch (t) {
@@ -59,8 +59,9 @@ void loop() {
           setEyes(v);
           break;
       }
+      buffer_index = 0;
     }
-    else if (buffer_index > 4) {
+    else if (b == '\n' || buffer_index == 5) {
       buffer_index = 0;
     }
   }
@@ -95,24 +96,24 @@ byte unamused_blink[2][8] = {
 };
 
 byte angry[2][8] = {
-  { B00111000, B01111101, B11111110, B11111100, B11111000, B11110000, B01100000, B01000000 },
-  { B01000000, B01100000, B11110000, B11111000, B11111100, B11111110, B01111101, B00111000 }
-};
-
-byte sad[2][8] = {
   { B01000000, B01100000, B11110000, B11111000, B11111100, B11111110, B01111101, B00111000 },
   { B00111000, B01111101, B11111110, B11111100, B11111000, B11110000, B01100000, B01000000 }
 };
 
+byte sad[2][8] = {
+  { B00111000, B01111101, B11111110, B11111100, B11111000, B11110000, B01100000, B01000000 },
+  { B01000000, B01100000, B11110000, B11111000, B11111100, B11111110, B01111101, B00111000 }
+};
+
 byte sleepy[2][8] = {
-  { B00111100, B00000000, B00000000, B11111111, B11111111, B00000000, B00000000, B00000000 },
-  { B00111100, B00000000, B00000000, B11111111, B11111111, B00000000, B00000000, B00000000 }
+  { B00011000, B00011000, B00011001, B00011001, B00011001, B00011001, B00011000, B00011000 },
+  { B00011000, B00011000, B00011001, B00011001, B00011001, B00011001, B00011000, B00011000 }
 };
 
 #define SHOW_EYES(mat) \
     for (int i = 0; i < 8; i++) { \
-      lc.setRow(0, i, mat[0][i]); \
-      lc.setRow(1, i, mat[1][i]); \
+      eyes.setRow(0, i, mat[0][i]); \
+      eyes.setRow(1, i, mat[1][i]); \
     } \
     break;
 
