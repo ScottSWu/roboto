@@ -13,7 +13,7 @@ void setup() {
   ears.attach(5);
   tail.attach(6);
 
-  pan.write(90);
+  pan.write(95);
   tilt.write(90);
   neck.write(90);
   ears.write(90);
@@ -27,6 +27,8 @@ void setup() {
 
   eyes.clearDisplay(0);
   eyes.clearDisplay(1);
+
+  setEyes(0);
 }
 
 char buffer[5];
